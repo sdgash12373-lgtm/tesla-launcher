@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Simple car-front glyph -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M34,62 L38,48 Q40,42 46,42 L62,42 Q68,42 70,48 L74,62 Q78,63 78,67 L78,74 Q78,76 76,76 L72,76 L72,79 Q72,81 70,81 L66,81 Q64,81 64,79 L64,76 L44,76 L44,79 Q44,81 42,81 L38,81 Q36,81 36,79 L36,76 L32,76 Q30,76 30,74 L30,67 Q30,63 34,62 Z M41,61 L67,61 L64,50 Q63,47 60,47 L48,47 Q45,47 44,50 Z" />
+    <path android:fillColor="#E31937"
+        android:pathData="M37,66 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z M65,66 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+</vector>
