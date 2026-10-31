@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryStd
@@ -37,14 +38,25 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sdgash.carlauncher.data.MediaControls
+import com.sdgash.carlauncher.data.NowPlaying
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Left-hand "vehicle" panel: gear, speed, clock and battery. */
+/**
+ * Left-hand panel: clock and battery on top, speed in the middle and the
+ * now-playing music card at the bottom (replaces the gear selector, since
+ * the head unit has no gear sensor).
+ */
 @Composable
-fun StatusPanel(modifier: Modifier = Modifier) {
+fun StatusPanel(
+    nowPlaying: NowPlaying?,
+    hasMediaAccess: Boolean,
+    media: MediaControls,
+    modifier: Modifier = Modifier,
+) {
     val now by rememberNow()
     val battery = rememberBatteryPercent()
 
@@ -52,58 +64,34 @@ fun StatusPanel(modifier: Modifier = Modifier) {
         modifier
             .clip(RoundedCornerShape(20.dp))
             .background(CarColors.Panel)
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        // Scale the big speed number with the panel so it fits 480px- and 720px-tall screens.
-        val speedSize = (maxHeight.value * 0.28f).coerceIn(48f, 140f).sp
+        // Scale the speed number with the panel so it fits 480px- and 720px-tall screens.
+        val speedSize = (maxHeight.value * 0.20f).coerceIn(40f, 120f).sp
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Gears(active = "P")
+                Text(
+                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(now),
+                    color = CarColors.TextPrimary, fontSize = 26.sp, fontWeight = FontWeight.Medium,
+                )
                 Spacer(Modifier.weight(1f))
+                Text(
+                    SimpleDateFormat("M月d日 EEE", Locale.TAIWAN).format(now),
+                    color = CarColors.TextSecondary, fontSize = 14.sp,
+                )
                 if (battery != null) {
-                    Icon(Icons.Filled.BatteryStd, null, tint = CarColors.TextSecondary, modifier = Modifier.size(18.dp))
-                    Text("$battery%", color = CarColors.TextSecondary, fontSize = 15.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Icon(Icons.Filled.BatteryStd, null, tint = CarColors.TextSecondary, modifier = Modifier.size(16.dp))
+                    Text("$battery%", color = CarColors.TextSecondary, fontSize = 14.sp)
                 }
             }
             Spacer(Modifier.weight(1f))
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("0", color = CarColors.TextPrimary, fontSize = speedSize, fontWeight = FontWeight.Light)
-                Text("km/h", color = CarColors.TextSecondary, fontSize = 16.sp)
+                Text("km/h", color = CarColors.TextSecondary, fontSize = 15.sp)
             }
             Spacer(Modifier.weight(1f))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                Text(
-                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(now),
-                    color = CarColors.TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    SimpleDateFormat("M月d日 EEE", Locale.TAIWAN).format(now),
-                    color = CarColors.TextSecondary, fontSize = 15.sp,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun Gears(active: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        listOf("P", "R", "N", "D").forEach { g ->
-            val on = g == active
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(if (on) CarColors.PanelRaised else CarColors.Panel)
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    g,
-                    color = if (on) CarColors.TextPrimary else CarColors.TextSecondary.copy(alpha = 0.5f),
-                    fontSize = 18.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                )
-            }
+            MusicCard(nowPlaying, hasMediaAccess, media, Modifier.fillMaxWidth())
         }
     }
 }

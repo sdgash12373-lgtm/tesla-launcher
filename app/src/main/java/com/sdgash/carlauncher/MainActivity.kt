@@ -47,6 +47,17 @@ class MainActivity : ComponentActivity() {
         if (intent.hasCategory(Intent.CATEGORY_HOME)) drawerOpen.value = false
     }
 
+    override fun onStart() {
+        super.onStart()
+        vm.media.refresh()   // picks up notification access granted in Settings
+        vm.volume.start()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        vm.volume.stop()
+    }
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()

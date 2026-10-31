@@ -14,9 +14,27 @@ class DockStore(context: Context) {
         prefs.edit().putString(KEY, keys.joinToString("\n")).apply()
     }
 
+    /** App shown in the big right-hand card instead of the map (null = map). */
+    var cardApp: String?
+        get() = prefs.getString(KEY_CARD, null)
+        set(v) = prefs.edit().putString(KEY_CARD, v).apply()
+
+    /** Try to open the card app as a floating window over the card. */
+    var cardFloating: Boolean
+        get() = prefs.getBoolean(KEY_FLOAT, true)
+        set(v) = prefs.edit().putBoolean(KEY_FLOAT, v).apply()
+
     companion object {
         private const val KEY = "pinned"
+        private const val KEY_CARD = "card_app"
+        private const val KEY_FLOAT = "card_floating"
         const val MAX_DOCK = 8
+
+        /** Android Auto itself; other projection apps are found by name. */
+        const val ANDROID_AUTO = "com.google.android.projection.gearhead"
+
+        /** Matches phone-projection apps (Android Auto, CarPlay boxes, ZLink...) by label/package. */
+        val PROJECTION_HINT = Regex("(?i)android ?auto|gearhead|carplay|zlink|carlink|autokit|手機互聯|互联|投屏")
 
         /** Packages we try to pin on first run if they are installed. */
         val DEFAULT_PACKAGES = listOf(

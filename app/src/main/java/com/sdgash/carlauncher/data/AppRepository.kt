@@ -3,7 +3,10 @@ package com.sdgash.carlauncher.data
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.app.ActivityOptions
 import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Process
@@ -60,6 +63,25 @@ class AppRepository(private val context: Context) {
         runCatching {
             launcherApps.startMainActivity(app.component, app.user, null, null)
         }
+    }
+
+    /** True when the system can show apps in resizable floating windows. */
+    val supportsFreeform: Boolean
+        get() = context.packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
+            Settings.Global.getInt(context.contentResolver, "enable_freeform_support", 0) != 0
+
+    /**
+     * Opens [app] in a floating window placed over [bounds] (screen pixels) so it
+     * looks like it sits inside the home-screen card. Android doesn't let a normal
+     * launcher truly embed another app, so this needs freeform window support;
+     * otherwise the app simply opens full screen.
+     */
+    fun launchInBounds(app: AppEntry, bounds: Rect?) {
+        if (bounds == null || !supportsFreeform) return launch(app)
+        val opts = ActivityOptions.makeBasic().setLaunchBounds(bounds).toBundle()
+        runCatching {
+            launcherApps.startMainActivity(app.component, app.user, bounds, opts)
+        }.onFailure { launch(app) }
     }
 
     fun openAppInfo(app: AppEntry) {

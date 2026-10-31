@@ -1,5 +1,6 @@
 package com.sdgash.carlauncher.ui
 
+import android.graphics.Rect
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,16 +20,46 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sdgash.carlauncher.LauncherViewModel
 import com.sdgash.carlauncher.data.AppEntry
+import com.sdgash.carlauncher.data.MediaControls
+import com.sdgash.carlauncher.data.NowPlaying
+import com.sdgash.carlauncher.data.VolumeControls
+import com.sdgash.carlauncher.data.VolumeState
+
+/** Everything the home layout shows, so it can be rendered without real services. */
+data class HomeState(
+    val apps: List<AppEntry>,
+    val dock: List<AppEntry>,
+    val cardApp: AppEntry?,
+    val nowPlaying: NowPlaying?,
+    val hasMediaAccess: Boolean,
+    val volume: VolumeState,
+)
+
+/** What the home layout can do. */
+interface HomeActions {
+    fun launch(app: AppEntry)
+    fun openCardApp(app: AppEntry, bounds: Rect)
+    fun isPinned(app: AppEntry): Boolean
+    fun togglePin(app: AppEntry)
+    fun appInfo(app: AppEntry)
+    fun settings()
+    fun customizeCard()
+    val media: MediaControls
+    val volume: VolumeControls
+}
 
 /**
- * Tesla-style home: status panel on the left (~30%), map on the right,
- * dock along the bottom. Sizes are derived from the screen so it works on
- * wide/short car screens (e.g. 1920x720, 1280x480) as well as tablets.
+ * Tesla-style home: status + music on the left (~30%), the map / Android Auto
+ * card on the right, dock along the bottom. Sizes are derived from the screen so
+ * it works on wide/short car screens (e.g. 1920x720, 1280x480) as well as tablets.
  */
 @Composable
 fun HomeScreen(
@@ -38,32 +69,55 @@ fun HomeScreen(
 ) {
     val apps by vm.apps.collectAsStateWithLifecycle()
     val dock by vm.dock.collectAsStateWithLifecycle()
-    val repo = vm.repo
+    val cardApp by vm.cardApp.collectAsStateWithLifecycle()
+    val floating by vm.cardFloating.collectAsStateWithLifecycle()
+    val nowPlaying by vm.media.nowPlaying.collectAsStateWithLifecycle()
+    val hasMediaAccess by vm.media.hasAccess.collectAsStateWithLifecycle()
+    val volume by vm.volume.state.collectAsStateWithLifecycle()
+    var pickerOpen by remember { mutableStateOf(false) }
+
+    val actions = remember(vm) {
+        object : HomeActions {
+            override fun launch(app: AppEntry) = vm.repo.launch(app)
+            override fun openCardApp(app: AppEntry, bounds: Rect) =
+                if (vm.cardFloating.value) vm.repo.launchInBounds(app, bounds) else vm.repo.launch(app)
+            override fun isPinned(app: AppEntry) = vm.isPinned(app)
+            override fun togglePin(app: AppEntry) = vm.togglePin(app)
+            override fun appInfo(app: AppEntry) = vm.repo.openAppInfo(app)
+            override fun settings() = vm.repo.openSystemSettings()
+            override fun customizeCard() { pickerOpen = true }
+            override val media: MediaControls = vm.media
+            override val volume: VolumeControls = vm.volume
+        }
+    }
+
     HomeContent(
-        apps = apps,
-        dock = dock,
+        state = HomeState(apps, dock, cardApp, nowPlaying, hasMediaAccess, volume),
+        actions = actions,
         drawerOpen = drawerOpen,
         onDrawerOpenChange = onDrawerOpenChange,
-        isPinned = vm::isPinned,
-        onTogglePin = vm::togglePin,
-        onLaunch = repo::launch,
-        onAppInfo = repo::openAppInfo,
-        onSettings = repo::openSystemSettings,
     )
+
+    if (pickerOpen) {
+        CardAppPicker(
+            candidates = vm.cardCandidates(apps),
+            current = cardApp,
+            floating = floating,
+            supportsFloating = vm.repo.supportsFreeform,
+            onPick = { vm.setCardApp(it); pickerOpen = false },
+            onFloatingChange = vm::setCardFloating,
+            onDismiss = { pickerOpen = false },
+        )
+    }
 }
 
 /** Stateless home layout; also used for screenshot tests. */
 @Composable
 fun HomeContent(
-    apps: List<AppEntry>,
-    dock: List<AppEntry>,
+    state: HomeState,
+    actions: HomeActions,
     drawerOpen: Boolean,
     onDrawerOpenChange: (Boolean) -> Unit,
-    isPinned: (AppEntry) -> Boolean,
-    onTogglePin: (AppEntry) -> Unit,
-    onLaunch: (AppEntry) -> Unit,
-    onAppInfo: (AppEntry) -> Unit,
-    onSettings: () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize().background(CarColors.Background)) {
         val dockHeight = (maxHeight * 0.14f).coerceIn(60.dp, 104.dp)
@@ -75,29 +129,35 @@ fun HomeContent(
 
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f).fillMaxWidth().padding(start = gap, end = gap, top = gap)) {
+                val status = @Composable { m: Modifier ->
+                    StatusPanel(state.nowPlaying, state.hasMediaAccess, actions.media, m)
+                }
+                val card = @Composable { m: Modifier ->
+                    MainCard(state.cardApp, actions::openCardApp, actions::customizeCard, m)
+                }
                 if (isLandscape) {
-                    val panelWidth = (screenW * 0.30f).coerceIn(220.dp, 460.dp)
+                    val panelWidth = (screenW * 0.30f).coerceIn(260.dp, 460.dp)
                     Row(Modifier.fillMaxSize()) {
-                        StatusPanel(Modifier.width(panelWidth).fillMaxHeight())
+                        status(Modifier.width(panelWidth).fillMaxHeight())
                         Spacer(Modifier.width(gap))
-                        MapPlaceholder(Modifier.weight(1f).fillMaxHeight())
+                        card(Modifier.weight(1f).fillMaxHeight())
                     }
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                        StatusPanel(Modifier.fillMaxWidth().height((screenH * 0.35f).coerceAtLeast(200.dp)))
+                        status(Modifier.fillMaxWidth().height((screenH * 0.40f).coerceAtLeast(260.dp)))
                         Spacer(Modifier.height(gap))
-                        MapPlaceholder(Modifier.weight(1f).fillMaxWidth())
+                        card(Modifier.weight(1f).fillMaxWidth())
                     }
                 }
 
                 // The drawer covers the content area, never the dock.
                 DrawerOverlay(visible = drawerOpen) {
                     AppDrawer(
-                        apps = apps,
-                        isPinned = isPinned,
-                        onLaunch = { onLaunch(it); onDrawerOpenChange(false) },
-                        onTogglePin = onTogglePin,
-                        onAppInfo = onAppInfo,
+                        apps = state.apps,
+                        isPinned = actions::isPinned,
+                        onLaunch = { actions.launch(it); onDrawerOpenChange(false) },
+                        onTogglePin = actions::togglePin,
+                        onAppInfo = actions::appInfo,
                         onClose = { onDrawerOpenChange(false) },
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -106,14 +166,16 @@ fun HomeContent(
 
             Dock(
                 height = dockHeight,
-                apps = dock,
+                apps = state.dock,
                 drawerOpen = drawerOpen,
-                onCar = { onDrawerOpenChange(false) },
-                onAppClick = { onLaunch(it); onDrawerOpenChange(false) },
-                onUnpin = onTogglePin,
-                onAppInfo = onAppInfo,
+                onAppClick = { actions.launch(it); onDrawerOpenChange(false) },
+                onUnpin = actions::togglePin,
+                onAppInfo = actions::appInfo,
                 onToggleDrawer = { onDrawerOpenChange(!drawerOpen) },
-                onSettings = onSettings,
+                onSettings = actions::settings,
+                onCustomizeCard = actions::customizeCard,
+                volume = state.volume,
+                volumeControls = actions.volume,
             )
         }
     }
