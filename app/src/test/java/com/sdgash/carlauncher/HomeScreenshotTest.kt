@@ -60,7 +60,8 @@ class HomeScreenshotTest(private val screen: Screen) {
         maxPercentDifference = 0.1,
     )
 
-    private val apps = listOf(
+    // Lazy: Bitmap/UserHandle need layoutlib, which the rule only loads once a test starts.
+    private val apps by lazy { listOf(
         "Google 地圖" to 0xFF34A853, "Spotify" to 0xFF1DB954, "YouTube" to 0xFFFF0000,
         "YT Music" to 0xFFE62117, "Chrome" to 0xFF4285F4, "電話" to 0xFF0F9D58,
         "設定" to 0xFF5F6368, "相機" to 0xFF455A64, "KKBOX" to 0xFF09CEF6,
@@ -69,7 +70,7 @@ class HomeScreenshotTest(private val screen: Screen) {
         "Netflix" to 0xFFE50914,
     ).mapIndexed { i, (label, color) ->
         AppEntry(label, ComponentName("demo.app$i", "Main"), Process.myUserHandle(), fakeIcon(label, color.toInt()))
-    }
+    } }
 
     private fun fakeIcon(label: String, color: Int) =
         Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888).also { bmp ->
