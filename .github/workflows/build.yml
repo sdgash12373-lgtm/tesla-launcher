@@ -37,6 +37,13 @@ jobs:
           path: out/*.apk
 
       # Every push to main updates a "latest" release so the APK has a fixed download link.
+      # Drop the previous "latest" release so it only ever holds the newest APK.
+      - name: Remove old latest release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete latest --cleanup-tag --yes --repo "${{ github.repository }}" || true
+
       - name: Publish latest release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
