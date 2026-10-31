@@ -6,3 +6,6 @@ local.properties
 .DS_Store
 captures/
 .kotlin/
+
+# Paparazzi output is published to the screenshots branch by CI
+app/src/test/snapshots/

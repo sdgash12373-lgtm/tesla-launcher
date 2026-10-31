@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -120,6 +121,7 @@ fun rememberNow() = remember { mutableStateOf(Date()) }.also { state ->
 /** Device battery percentage, or null when the head unit reports no battery. */
 @Composable
 fun rememberBatteryPercent(): Int? {
+    if (LocalInspectionMode.current) return 87  // previews / screenshot tests
     val context = LocalContext.current
     var percent by remember { mutableStateOf<Int?>(null) }
     DisposableEffect(context) {

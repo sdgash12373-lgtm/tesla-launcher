@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sdgash.carlauncher.LauncherViewModel
+import com.sdgash.carlauncher.data.AppEntry
 
 /**
  * Tesla-style home: status panel on the left (~30%), map on the right,
@@ -38,7 +39,32 @@ fun HomeScreen(
     val apps by vm.apps.collectAsStateWithLifecycle()
     val dock by vm.dock.collectAsStateWithLifecycle()
     val repo = vm.repo
+    HomeContent(
+        apps = apps,
+        dock = dock,
+        drawerOpen = drawerOpen,
+        onDrawerOpenChange = onDrawerOpenChange,
+        isPinned = vm::isPinned,
+        onTogglePin = vm::togglePin,
+        onLaunch = repo::launch,
+        onAppInfo = repo::openAppInfo,
+        onSettings = repo::openSystemSettings,
+    )
+}
 
+/** Stateless home layout; also used for screenshot tests. */
+@Composable
+fun HomeContent(
+    apps: List<AppEntry>,
+    dock: List<AppEntry>,
+    drawerOpen: Boolean,
+    onDrawerOpenChange: (Boolean) -> Unit,
+    isPinned: (AppEntry) -> Boolean,
+    onTogglePin: (AppEntry) -> Unit,
+    onLaunch: (AppEntry) -> Unit,
+    onAppInfo: (AppEntry) -> Unit,
+    onSettings: () -> Unit,
+) {
     BoxWithConstraints(Modifier.fillMaxSize().background(CarColors.Background)) {
         val dockHeight = (maxHeight * 0.14f).coerceIn(60.dp, 104.dp)
         val gap = 10.dp
@@ -68,10 +94,10 @@ fun HomeScreen(
                 DrawerOverlay(visible = drawerOpen) {
                     AppDrawer(
                         apps = apps,
-                        isPinned = vm::isPinned,
-                        onLaunch = { repo.launch(it); onDrawerOpenChange(false) },
-                        onTogglePin = vm::togglePin,
-                        onAppInfo = repo::openAppInfo,
+                        isPinned = isPinned,
+                        onLaunch = { onLaunch(it); onDrawerOpenChange(false) },
+                        onTogglePin = onTogglePin,
+                        onAppInfo = onAppInfo,
                         onClose = { onDrawerOpenChange(false) },
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -83,11 +109,11 @@ fun HomeScreen(
                 apps = dock,
                 drawerOpen = drawerOpen,
                 onCar = { onDrawerOpenChange(false) },
-                onAppClick = { repo.launch(it); onDrawerOpenChange(false) },
-                onUnpin = vm::togglePin,
-                onAppInfo = repo::openAppInfo,
+                onAppClick = { onLaunch(it); onDrawerOpenChange(false) },
+                onUnpin = onTogglePin,
+                onAppInfo = onAppInfo,
                 onToggleDrawer = { onDrawerOpenChange(!drawerOpen) },
-                onSettings = repo::openSystemSettings,
+                onSettings = onSettings,
             )
         }
     }
